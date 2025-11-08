@@ -1,57 +1,61 @@
-# 🚀 Ubuntu 22.04 Fullstack Server Setup Guide (Node.js, Next.js, React, MongoDB)
+# 🚀 Ubuntu 22.04 Fullstack Server Setup Guide
+**(Node.js | Next.js | React | MongoDB | Nginx | PM2 | Certbot | GitHub Deploy)**
 
-This single guide helps you configure a **secure, high-performance, production-ready Ubuntu 22.04 server** for hosting Node.js, Next.js, or React apps — with Nginx, PM2, SSL, MongoDB, and basic security hardening.
-
-> ⚙️ Replace placeholders like `your_domain.com`, `api.your_domain.com`, and ports as needed.
+This guide provides a complete step-by-step setup for a **secure, reliable, and production-ready Ubuntu 22.04 server**.  
+It assumes you will use:
+- `/mnt/server` → for backend (Node.js / API)
+- `/mnt/web` → for frontend (Next.js / React)
 
 ---
 
-## 1. Update & Essentials
+## 🧱 1. System Setup & Essentials
 
 sudo apt update && sudo apt upgrade -y  
 sudo timedatectl set-timezone Asia/Kolkata  
-sudo apt install -y curl git ufw build-essential software-properties-common
+sudo apt install -y curl git ufw build-essential software-properties-common ca-certificates gnupg lsb-release unzip
 
 ---
 
-## 2. Install & Enable Nginx
+## 🌐 2. Nginx Installation & Configuration
 
 sudo apt install -y nginx  
 sudo systemctl enable nginx  
 sudo systemctl start nginx  
-systemctl status nginx
+systemctl status nginx  
 
 ---
 
-## 3. Configure Firewall (UFW)
+## 🔥 3. Firewall (UFW)
 
 sudo ufw allow OpenSSH  
-sudo ufw allow 'Nginx HTTP'  
-sudo ufw enable  
+sudo ufw allow 'Nginx Full'  
+sudo ufw --force enable  
 sudo ufw status
 
 ---
 
-## 4. Create Web Directory
+## 📁 4. Create Folder Structure
 
-sudo mkdir -p /var/www/your_domain  
-sudo chown -R $USER:$USER /var/www/your_domain  
-sudo chmod -R 755 /var/www/your_domain
+mkdir -p /mnt/server  
+mkdir -p /mnt/web  
+sudo chown -R $USER:$USER /mnt  
+sudo chmod -R 755 /mnt  
 
 ---
 
-## 5. Nginx Configuration
+## ⚙️ 5. Nginx Configuration
 
 sudo nano /etc/nginx/sites-available/your_domain
 
-Paste the following config:
+Paste this config:
 
 server {
     listen 80;
     listen [::]:80;
-    add_header Server "MyCompany Server";
+
     server_name api.your_domain.com;
     client_max_body_size 1024M;
+    add_header Server "MyCompany Server";
 
     location / {
         proxy_pass http://localhost:8080;
@@ -66,6 +70,7 @@ server {
 server {
     listen 80;
     listen [::]:80;
+
     server_name your_domain.com www.your_domain.com;
     client_max_body_size 1024M;
 
@@ -88,22 +93,33 @@ server {
 }
 
 Enable and test:
-
 sudo ln -s /etc/nginx/sites-available/your_domain /etc/nginx/sites-enabled/  
 sudo nginx -t  
-sudo systemctl restart nginx
+sudo systemctl restart nginx  
 
 ---
 
-## 6. SSL with Let's Encrypt (Certbot)
+## 🔒 6. SSL with Certbot (HTTPS Setup)
 
-sudo apt install -y certbot python3-certbot-nginx  
-sudo certbot --nginx -d your_domain.com -d www.your_domain.com  
+Install Certbot and Nginx plugin:
+
+sudo apt install -y certbot python3-certbot-nginx
+
+Obtain certificates:
+sudo certbot --nginx -d your_domain.com -d www.your_domain.com
+
+(Optional API domain):
+sudo certbot --nginx -d api.your_domain.com
+
+Test auto-renewal:
 sudo certbot renew --dry-run
 
+Renew manually (monthly check):
+sudo certbot renew && sudo systemctl reload nginx
+
 ---
 
-## 7. Install Node.js (via NVM)
+## 🧠 7. Node.js Installation (via NVM)
 
 sudo apt install curl -y  
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash  
@@ -115,18 +131,17 @@ npm -v
 
 ---
 
-## 8. PM2 Process Manager
+## ⚡ 8. PM2 Process Manager
 
 npm install -g pm2  
-pm2 start index.js --name "api-app" -i max --node-args="--max-old-space-size=512"  
+pm2 start /mnt/server/index.js --name "api-server" -i max --node-args="--max-old-space-size=512"  
 pm2 save  
 pm2 startup  
-
-*(Follow the command output to enable PM2 startup service.)*
+# (Run the command printed by pm2 startup)
 
 ---
 
-## 9. PM2 Commands
+## 🧰 9. PM2 Commands
 
 pm2 list  
 pm2 logs  
@@ -136,61 +151,83 @@ pm2 monit
 
 ---
 
-## 10. Install MongoDB (Latest Version)
+## 🗄️ 10. MongoDB Installation & Configuration
 
-Import MongoDB public key & add repository:
-
+Add MongoDB repository:
 curl -fsSL https://pgp.mongodb.com/server-7.0.asc | sudo gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg --dearmor  
-echo "deb [signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+echo "deb [signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list  
 
 Install MongoDB:
-
 sudo apt update  
 sudo apt install -y mongodb-org  
 
-Start and enable service:
-
-sudo systemctl start mongod  
+Enable and check:
 sudo systemctl enable mongod  
+sudo systemctl start mongod  
 sudo systemctl status mongod  
-
-Check version:
-
 mongod --version
 
 ---
 
-## 11. MongoDB Security (Remote Access + Auth)
+## 🔐 11. Secure MongoDB (Remote Access & Auth)
 
-Edit MongoDB config:
+sudo nano /etc/mongod.conf  
 
-sudo nano /etc/mongod.conf
+Change:
+net:
+  bindIp: 0.0.0.0
 
-Find `bindIp` and modify:
-bindIp: 0.0.0.0
-
-Enable authentication:
+Add:
 security:
   authorization: enabled
 
-Save and restart:
-sudo systemctl restart mongod
+Restart:
+sudo systemctl restart mongod  
 
 Create admin user:
-mongosh
-use admin
-db.createUser({ user: "adminUser", pwd: "StrongPassword123", roles: [ { role: "root", db: "admin" } ] })
-exit
+mongosh  
+use admin  
+db.createUser({ user: "adminUser", pwd: "StrongPassword123", roles: [ { role: "root", db: "admin" } ] })  
+exit  
 
-Allow MongoDB port in firewall (optional, restrict by IP if needed):
-sudo ufw allow 27017/tcp
+Allow MongoDB port:
+sudo ufw allow 27017/tcp  
 
 ---
 
-## 12. Security & Optimization
+## 💻 12. Import Project from GitHub
+
+### Option 1: Using HTTPS with username/token
+cd /mnt/server  
+git clone https://username:github_token@github.com/username/projectname.git  
+
+cd /mnt/web  
+git clone https://username:github_token@github.com/username/frontend.git  
+
+*(Replace username and token with your actual GitHub credentials.)*
+
+---
+
+### Option 2: Using SSH Key (Recommended)
+Generate SSH key:
+ssh-keygen -t ed25519 -C "your_email@example.com"
+
+Copy key:
+cat ~/.ssh/id_ed25519.pub
+
+Add this key to GitHub → **Settings → SSH and GPG Keys → New SSH Key**
+
+Then clone:
+cd /mnt/server  
+git clone git@github.com:username/projectname.git  
+cd /mnt/web  
+git clone git@github.com:username/frontend.git
+
+---
+
+## 🔐 13. Security Hardening
 
 Disable Nginx version info:
-
 sudo nano /etc/nginx/nginx.conf  
 Inside `http {}` add:
 server_tokens off;
@@ -203,7 +240,7 @@ Enable automatic security updates:
 sudo apt install unattended-upgrades -y
 sudo dpkg-reconfigure --priority=low unattended-upgrades
 
-Optional Swap (for low-memory VPS):
+Add Swap (for low-memory VPS):
 sudo fallocate -l 2G /swapfile
 sudo chmod 600 /swapfile
 sudo mkswap /swapfile
@@ -212,21 +249,17 @@ echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 
 ---
 
-## 13. Folder Structure
+## 📂 14. Folder Structure
 
-/var/www/
- ├── api.your_domain.com/
- │   ├── index.js
- │   ├── package.json
- │   └── ...
- ├── your_domain.com/
- │   ├── .next/
- │   ├── build/
- │   └── ...
+/mnt/
+ ├── server/        → Node.js backend  
+ ├── web/           → Next.js / React frontend  
+ ├── mongo-backups/ → MongoDB backups  
+ └── logs/          → App & system logs  
 
 ---
 
-## 14. Maintenance Commands
+## 🧼 15. Maintenance Commands
 
 sudo nginx -t  
 sudo systemctl reload nginx  
@@ -237,47 +270,55 @@ sudo journalctl -xe
 
 ---
 
-## 15. Monitoring (Optional)
+## 📊 16. Monitoring (Optional)
 
-### Netdata (real-time metrics)
+### Netdata (Real-time System Monitor)
 bash <(curl -Ss https://my-netdata.io/kickstart.sh)
-Access via: http://your_server_ip:19999
+→ Access: http://your_server_ip:19999  
 
-### PM2 Monitoring Dashboard
-pm2 monit
+### PM2 Dashboard
+pm2 monit  
 
 ---
 
-## 16. Backup Setup (Optional)
+## 💾 17. Backup Setup (Optional)
 
 Install Rclone:
 sudo apt install rclone -y
 
-Backup web + pm2 data:
-sudo tar -czvf /root/server-backup-$(date +%F).tar.gz /var/www ~/.pm2
+Backup web & server:
+sudo tar -czvf /root/server-backup-$(date +%F).tar.gz /mnt/server /mnt/web ~/.pm2  
 
 Upload to cloud:
-rclone copy /root/server-backup-*.tar.gz remote:server-backups
+rclone copy /root/server-backup-*.tar.gz remote:server-backups  
 
 ---
 
-## 17. MongoDB Backup (Optional)
+## 🧮 18. MongoDB Backup (Manual or Cron)
 
-Create DB backup:
-mongodump --out /root/mongo-backups/$(date +%F)
+Manual:
+mongodump --out /mnt/mongo-backups/$(date +%F)
 
-Restore backup:
-mongorestore /root/mongo-backups/<date>
+Restore:
+mongorestore /mnt/mongo-backups/<date>
 
-(Optional) Compress backup:
-tar -czvf /root/mongo-backup-$(date +%F).tar.gz /root/mongo-backups/$(date +%F)
+Compress:
+tar -czvf /root/mongo-backup-$(date +%F).tar.gz /mnt/mongo-backups/$(date +%F)
+
+To automate daily at 2 AM:
+sudo crontab -e
+0 2 * * * mongodump --out /mnt/mongo-backups/$(date +\%F)
 
 ---
 
-## 18. Final Notes
+## ✅ 19. Final Notes
 
-✅ Ensure DNS records point to your server before SSL setup.  
-✅ Run `pm2 save` after app changes.  
-✅ Use strong MongoDB credentials & firewall rules.  
-✅ Reboot after setup:  
+- Ensure DNS records point to your server IP before running Certbot.  
+- Always run `pm2 save` after changes.  
+- Use HTTPS-only access once SSL is active.  
+- Use GitHub tokens instead of plain passwords for automation.  
+- Reboot once after setup for clean start:
+
 sudo reboot
+
+---
