@@ -24,67 +24,7 @@ sudo apt install -y curl git ufw build-essential software-properties-common ca-c
 
 ---
 
-## 🌐 2. Nginx Installation & Configuration
-
-```bash
-sudo apt install -y nginx
-```
-
-```bash
-sudo systemctl enable nginx
-```
-
-```bash
-sudo systemctl start nginx
-```
-
-```bash
-sudo systemctl status nginx
-```
-
----
-
-## 🔥 3. Firewall (UFW)
-
-```bash
-sudo ufw allow OpenSSH
-```
-
-```bash
-sudo ufw allow 'Nginx Full'
-```
-
-```bash
-sudo ufw --force enable
-```
-
-```bash
-sudo ufw status
-```
-
----
-
-## 📁 4. Create Folder Structure
-
-```bash
-mkdir -p /mnt/server
-```
-
-```bash
-mkdir -p /mnt/web
-```
-
-```bash
-sudo chown -R $USER:$USER /mnt
-```
-
-```bash
-sudo chmod -R 755 /mnt
-```
-
----
-
-## 💾 5. Swap Memory Setup
+## 💾 2. Swap Memory Setup
 
 Create swap file (recommended: 2GB for servers with 1-2GB RAM, 4GB for servers with 4GB+ RAM):
 
@@ -142,110 +82,51 @@ sudo sysctl vm.swappiness=10
 
 ---
 
-## ⚙️ 6. Nginx Configuration
+## 🔥 3. Firewall (UFW)
 
 ```bash
-sudo nano /etc/nginx/sites-available/your_domain
-```
-
-Paste this configuration:
-
-```nginx
-server {
-    listen 80;
-    listen [::]:80;
-
-    server_name api.your_domain.com;
-    client_max_body_size 1024M;
-    add_header Server "MyCompany Server";
-
-    location / {
-        proxy_pass http://localhost:8080;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header Host $http_host;
-        proxy_cache_bypass $http_upgrade;
-        proxy_redirect off;
-    }
-}
-
-server {
-    listen 80;
-    listen [::]:80;
-
-    server_name your_domain.com www.your_domain.com;
-    client_max_body_size 1024M;
-
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header Host $http_host;
-        proxy_cache_bypass $http_upgrade;
-        proxy_redirect off;
-    }
-
-    location /static/ {
-        expires 1d;
-        add_header Cache-Control "public, max-age=31536000, immutable";
-    }
-
-    gzip on;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
-}
-```
-
-Enable and test:
-
-```bash
-sudo ln -s /etc/nginx/sites-available/your_domain /etc/nginx/sites-enabled/
+sudo ufw allow OpenSSH
 ```
 
 ```bash
-sudo nginx -t
+sudo ufw allow 'Nginx Full'
 ```
 
 ```bash
-sudo systemctl restart nginx
+sudo ufw --force enable
+```
+
+```bash
+sudo ufw status
 ```
 
 ---
 
-## 🔒 7. SSL with Certbot (HTTPS Setup)
-
-Install Certbot and Nginx plugin:
+## 📁 4. Create Folder Structure
 
 ```bash
-sudo apt install -y certbot python3-certbot-nginx
+mkdir -p /mnt/server
 ```
 
-Obtain certificates for main domain:
-
 ```bash
-sudo certbot --nginx -d your_domain.com -d www.your_domain.com
+mkdir -p /mnt/web
 ```
 
-Obtain certificate for API domain (optional):
-
 ```bash
-sudo certbot --nginx -d api.your_domain.com
+mkdir -p /mnt/logs
 ```
 
-Test auto-renewal:
-
 ```bash
-sudo certbot renew --dry-run
+sudo chown -R $USER:$USER /mnt
 ```
 
-Renew manually (monthly check):
-
 ```bash
-sudo certbot renew && sudo systemctl reload nginx
+sudo chmod -R 755 /mnt
 ```
 
 ---
 
-## 🧠 8. Node.js Installation (via NVM)
+## 🧠 5. Node.js Installation (via NVM)
 
 ```bash
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash
@@ -277,61 +158,7 @@ npm -v
 
 ---
 
-## ⚡ 9. PM2 Process Manager
-
-```bash
-npm install -g pm2
-```
-
-```bash
-pm2 start /mnt/server/index.js --name "api-server" -i max --node-args="--max-old-space-size=512"
-```
-
-```bash
-pm2 save
-```
-
-```bash
-pm2 startup
-```
-
-**Note:** Run the command printed by `pm2 startup` to enable PM2 on system boot.
-
----
-
-## 🧰 10. PM2 Commands
-
-```bash
-pm2 list
-```
-
-```bash
-pm2 logs
-```
-
-```bash
-pm2 restart all
-```
-
-```bash
-pm2 delete all
-```
-
-```bash
-pm2 monit
-```
-
-```bash
-pm2 stop all
-```
-
-```bash
-pm2 reload all
-```
-
----
-
-## 💻 11. Import Project from GitHub
+## 💻 6. Import Project from GitHub
 
 ### Option 1: Using HTTPS with Personal Access Token
 
@@ -389,6 +216,215 @@ git clone git@github.com:username/frontend.git
 
 ---
 
+## 📦 7. Install Project Dependencies
+
+### Backend Setup
+
+```bash
+cd /mnt/server
+```
+
+```bash
+npm install
+```
+
+**Note:** If your project uses a different package manager (yarn, pnpm), use that instead.
+
+### Frontend Setup
+
+```bash
+cd /mnt/web
+```
+
+```bash
+npm install
+```
+
+**Note:** For Next.js projects, you may need to build the production version later.
+
+---
+
+## ⚡ 8. PM2 Process Manager
+
+Install PM2 globally:
+
+```bash
+npm install -g pm2
+```
+
+Start backend server with PM2:
+
+```bash
+cd /mnt/server
+```
+
+```bash
+pm2 start index.js --name "api-server" -i max --node-args="--max-old-space-size=512"
+```
+
+**Note:** Adjust the start command based on your project structure (e.g., `npm start`, `node server.js`, etc.)
+
+For Next.js frontend (if running standalone):
+
+```bash
+cd /mnt/web
+```
+
+```bash
+pm2 start npm --name "frontend" -- start
+```
+
+**Note:** For Next.js, you typically build first: `npm run build` then `pm2 start npm --name "frontend" -- start`
+
+Save PM2 process list:
+
+```bash
+pm2 save
+```
+
+Enable PM2 on system boot:
+
+```bash
+pm2 startup
+```
+
+**Important:** Run the command printed by `pm2 startup` to enable PM2 on system boot.
+
+Verify processes are running:
+
+```bash
+pm2 list
+```
+
+---
+
+## 🌐 9. Nginx Installation
+
+```bash
+sudo apt install -y nginx
+```
+
+```bash
+sudo systemctl enable nginx
+```
+
+```bash
+sudo systemctl start nginx
+```
+
+```bash
+sudo systemctl status nginx
+```
+
+---
+
+## ⚙️ 10. Nginx Configuration
+
+```bash
+sudo nano /etc/nginx/sites-available/your_domain
+```
+
+Paste this configuration:
+
+```nginx
+server {
+    listen 80;
+    listen [::]:80;
+
+    server_name api.your_domain.com;
+    client_max_body_size 1024M;
+    add_header Server "MyCompany Server";
+
+    location / {
+        proxy_pass http://localhost:8080;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Host $http_host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_redirect off;
+    }
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+
+    server_name your_domain.com www.your_domain.com;
+    client_max_body_size 1024M;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Host $http_host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_redirect off;
+    }
+
+    location /static/ {
+        expires 1d;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
+}
+```
+
+**Note:** Adjust `proxy_pass` ports (8080 for API, 3000 for frontend) to match your PM2 application ports.
+
+Enable and test:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/your_domain /etc/nginx/sites-enabled/
+```
+
+```bash
+sudo nginx -t
+```
+
+```bash
+sudo systemctl restart nginx
+```
+
+---
+
+## 🔒 11. SSL with Certbot (HTTPS Setup)
+
+**Important:** Ensure your DNS records point to your server IP before running Certbot.
+
+Install Certbot and Nginx plugin:
+
+```bash
+sudo apt install -y certbot python3-certbot-nginx
+```
+
+Obtain certificates for main domain:
+
+```bash
+sudo certbot --nginx -d your_domain.com -d www.your_domain.com
+```
+
+Obtain certificate for API domain (optional):
+
+```bash
+sudo certbot --nginx -d api.your_domain.com
+```
+
+Test auto-renewal:
+
+```bash
+sudo certbot renew --dry-run
+```
+
+Renew manually (monthly check):
+
+```bash
+sudo certbot renew && sudo systemctl reload nginx
+```
+
+---
+
 ## 🔐 12. Security Hardening
 
 ### Disable Nginx Version Info
@@ -435,7 +471,47 @@ sudo dpkg-reconfigure --priority=low unattended-upgrades
 
 ---
 
-## 📂 13. Folder Structure
+## 🧰 13. PM2 Commands Reference
+
+```bash
+pm2 list
+```
+
+```bash
+pm2 logs
+```
+
+```bash
+pm2 restart all
+```
+
+```bash
+pm2 restart api-server
+```
+
+```bash
+pm2 stop all
+```
+
+```bash
+pm2 delete all
+```
+
+```bash
+pm2 monit
+```
+
+```bash
+pm2 reload all
+```
+
+```bash
+pm2 save
+```
+
+---
+
+## 📂 14. Folder Structure
 
 ```
 /mnt/
@@ -444,15 +520,9 @@ sudo dpkg-reconfigure --priority=low unattended-upgrades
  └── logs/          → App & system logs
 ```
 
-Create additional directories:
-
-```bash
-mkdir -p /mnt/logs
-```
-
 ---
 
-## 🧼 14. Maintenance Commands
+## 🧼 15. Maintenance Commands
 
 Test Nginx configuration:
 
@@ -496,9 +566,15 @@ Check disk usage:
 df -h
 ```
 
+Check swap usage:
+
+```bash
+free -h
+```
+
 ---
 
-## 📊 15. Monitoring (Optional)
+## 📊 16. Monitoring (Optional)
 
 ### Netdata (Real-time System Monitor)
 
@@ -528,7 +604,7 @@ sudo apt install htop -y
 
 ---
 
-## 💾 16. Backup Setup (Optional)
+## 💾 17. Backup Setup (Optional)
 
 ### Install Rclone
 
@@ -550,7 +626,7 @@ rclone copy /root/server-backup-*.tar.gz remote:server-backups
 
 ---
 
-## ✅ 17. Final Notes
+## ✅ 18. Final Notes
 
 - ✅ Ensure DNS records point to your server IP before running Certbot
 - ✅ Always run `pm2 save` after changes to persist process list
@@ -559,6 +635,7 @@ rclone copy /root/server-backup-*.tar.gz remote:server-backups
 - ✅ Keep system updated regularly: `sudo apt update && sudo apt upgrade -y`
 - ✅ Monitor logs regularly: `pm2 logs` and `sudo journalctl -xe`
 - ✅ Test Nginx configuration before reloading: `sudo nginx -t`
+- ✅ Verify your application ports match Nginx proxy_pass configuration
 - ✅ Reboot once after setup for clean start:
 
 ```bash
@@ -580,6 +657,7 @@ sudo reboot
 | Restart all services | `pm2 restart all && sudo systemctl restart nginx` |
 | Check firewall | `sudo ufw status` |
 | System update | `sudo apt update && sudo apt upgrade -y` |
+| Test Nginx config | `sudo nginx -t` |
 
 ---
 
