@@ -1,5 +1,5 @@
 # 🚀 Ubuntu 22.04 Fullstack Server Setup Guide
-**(Node.js | Next.js | React | MongoDB | Nginx | PM2 | Certbot | GitHub Deploy)**
+**(Node.js | Next.js | React | Nginx | PM2 | Certbot | GitHub Deploy)**
 
 This guide provides a complete step-by-step setup for a **secure, reliable, and production-ready Ubuntu 22.04 server**.  
 It assumes you will use:
@@ -84,7 +84,65 @@ sudo chmod -R 755 /mnt
 
 ---
 
-## ⚙️ 5. Nginx Configuration
+## 💾 5. Swap Memory Setup
+
+Create swap file (recommended: 2GB for servers with 1-2GB RAM, 4GB for servers with 4GB+ RAM):
+
+```bash
+sudo fallocate -l 2G /swapfile
+```
+
+**Note:** Adjust size as needed (e.g., `-l 4G` for 4GB swap)
+
+Set proper permissions:
+
+```bash
+sudo chmod 600 /swapfile
+```
+
+Format as swap:
+
+```bash
+sudo mkswap /swapfile
+```
+
+Enable swap:
+
+```bash
+sudo swapon /swapfile
+```
+
+Make swap permanent (survives reboot):
+
+```bash
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
+Verify swap is active:
+
+```bash
+free -h
+```
+
+Check swap usage:
+
+```bash
+swapon --show
+```
+
+**Optional:** Optimize swap usage (reduce swappiness - default is 60):
+
+```bash
+echo 'vm.swappiness=10' | sudo tee -a /etc/sysctl.conf
+```
+
+```bash
+sudo sysctl vm.swappiness=10
+```
+
+---
+
+## ⚙️ 6. Nginx Configuration
 
 ```bash
 sudo nano /etc/nginx/sites-available/your_domain
@@ -153,7 +211,7 @@ sudo systemctl restart nginx
 
 ---
 
-## 🔒 6. SSL with Certbot (HTTPS Setup)
+## 🔒 7. SSL with Certbot (HTTPS Setup)
 
 Install Certbot and Nginx plugin:
 
@@ -187,7 +245,7 @@ sudo certbot renew && sudo systemctl reload nginx
 
 ---
 
-## 🧠 7. Node.js Installation (via NVM)
+## 🧠 8. Node.js Installation (via NVM)
 
 ```bash
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash
@@ -219,7 +277,7 @@ npm -v
 
 ---
 
-## ⚡ 8. PM2 Process Manager
+## ⚡ 9. PM2 Process Manager
 
 ```bash
 npm install -g pm2
@@ -241,7 +299,7 @@ pm2 startup
 
 ---
 
-## 🧰 9. PM2 Commands
+## 🧰 10. PM2 Commands
 
 ```bash
 pm2 list
@@ -273,100 +331,7 @@ pm2 reload all
 
 ---
 
-## 🗄️ 10. MongoDB Installation & Configuration
-
-Add MongoDB repository:
-
-```bash
-curl -fsSL https://pgp.mongodb.com/server-7.0.asc | sudo gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg --dearmor
-```
-
-```bash
-echo "deb [signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
-```
-
-Install MongoDB:
-
-```bash
-sudo apt update
-```
-
-```bash
-sudo apt install -y mongodb-org
-```
-
-Enable and start MongoDB:
-
-```bash
-sudo systemctl enable mongod
-```
-
-```bash
-sudo systemctl start mongod
-```
-
-```bash
-sudo systemctl status mongod
-```
-
-```bash
-mongod --version
-```
-
----
-
-## 🔐 11. Secure MongoDB (Remote Access & Auth)
-
-Edit MongoDB configuration:
-
-```bash
-sudo nano /etc/mongod.conf
-```
-
-Change `bindIp` to:
-```yaml
-net:
-  bindIp: 0.0.0.0
-```
-
-Add security section:
-```yaml
-security:
-  authorization: enabled
-```
-
-Restart MongoDB:
-
-```bash
-sudo systemctl restart mongod
-```
-
-Create admin user:
-
-```bash
-mongosh
-```
-
-In MongoDB shell, run:
-```javascript
-use admin
-db.createUser({ 
-  user: "adminUser", 
-  pwd: "StrongPassword123", 
-  roles: [ { role: "root", db: "admin" } ] 
-})
-exit
-```
-
-Allow MongoDB port in firewall:
-
-```bash
-sudo ufw allow 27017/tcp
-```
-
----
-
-## 💻 12. Import Project from GitHub
+## 💻 11. Import Project from GitHub
 
 ### Option 1: Using HTTPS with Personal Access Token
 
@@ -424,7 +389,7 @@ git clone git@github.com:username/frontend.git
 
 ---
 
-## 🔐 13. Security Hardening
+## 🔐 12. Security Hardening
 
 ### Disable Nginx Version Info
 
@@ -468,51 +433,18 @@ sudo apt install unattended-upgrades -y
 sudo dpkg-reconfigure --priority=low unattended-upgrades
 ```
 
-### Add Swap (for low-memory VPS)
-
-```bash
-sudo fallocate -l 2G /swapfile
-```
-
-```bash
-sudo chmod 600 /swapfile
-```
-
-```bash
-sudo mkswap /swapfile
-```
-
-```bash
-sudo swapon /swapfile
-```
-
-```bash
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-```
-
-Verify swap:
-
-```bash
-free -h
-```
-
 ---
 
-## 📂 14. Folder Structure
+## 📂 13. Folder Structure
 
 ```
 /mnt/
  ├── server/        → Node.js backend
  ├── web/           → Next.js / React frontend
- ├── mongo-backups/ → MongoDB backups
  └── logs/          → App & system logs
 ```
 
 Create additional directories:
-
-```bash
-mkdir -p /mnt/mongo-backups
-```
 
 ```bash
 mkdir -p /mnt/logs
@@ -520,7 +452,7 @@ mkdir -p /mnt/logs
 
 ---
 
-## 🧼 15. Maintenance Commands
+## 🧼 14. Maintenance Commands
 
 Test Nginx configuration:
 
@@ -566,7 +498,7 @@ df -h
 
 ---
 
-## 📊 16. Monitoring (Optional)
+## 📊 15. Monitoring (Optional)
 
 ### Netdata (Real-time System Monitor)
 
@@ -596,7 +528,7 @@ sudo apt install htop -y
 
 ---
 
-## 💾 17. Backup Setup (Optional)
+## 💾 16. Backup Setup (Optional)
 
 ### Install Rclone
 
@@ -618,43 +550,7 @@ rclone copy /root/server-backup-*.tar.gz remote:server-backups
 
 ---
 
-## 🧮 18. MongoDB Backup (Manual or Cron)
-
-### Manual Backup
-
-```bash
-mongodump --out /mnt/mongo-backups/$(date +%F)
-```
-
-### Restore Backup
-
-```bash
-mongorestore /mnt/mongo-backups/<date>
-```
-
-### Compress Backup
-
-```bash
-tar -czvf /root/mongo-backup-$(date +%F).tar.gz /mnt/mongo-backups/$(date +%F)
-```
-
-### Automate Daily Backup (Cron)
-
-Edit crontab:
-
-```bash
-sudo crontab -e
-```
-
-Add this line for daily backup at 2 AM:
-
-```cron
-0 2 * * * mongodump --out /mnt/mongo-backups/$(date +\%F)
-```
-
----
-
-## ✅ 19. Final Notes
+## ✅ 17. Final Notes
 
 - ✅ Ensure DNS records point to your server IP before running Certbot
 - ✅ Always run `pm2 save` after changes to persist process list
@@ -679,7 +575,7 @@ sudo reboot
 |------|---------|
 | Check Nginx status | `sudo systemctl status nginx` |
 | Check PM2 status | `pm2 list` |
-| Check MongoDB status | `sudo systemctl status mongod` |
+| Check swap usage | `free -h` or `swapon --show` |
 | View PM2 logs | `pm2 logs` |
 | Restart all services | `pm2 restart all && sudo systemctl restart nginx` |
 | Check firewall | `sudo ufw status` |
